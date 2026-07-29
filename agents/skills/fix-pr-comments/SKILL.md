@@ -1,0 +1,99 @@
+---
+name: fix-pr-comments
+description: Fetch all review comments for the current PR, classify each one (action-required, question, suggestion, nit, acknowledgment, resolved), and handle it appropriately — fix the code, reply to the reviewer, or skip. Use when addressing PR review feedback, responding to reviewer comments, resolving a comment backlog, or working through "please address review comments".
+---
+
+# Fix PR Review Comments
+
+Fetch all review comments for the current PR, classify them, and handle each appropriately.
+
+## Step 1: Gather Context
+
+1. Run `gh pr status` to identify the current PR number
+2. Fetch inline review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments`
+3. Fetch issue-level comments: `gh pr view {number} --comments`
+4. Read the PR diff for context: `git diff main...HEAD`
+
+## Step 2: Classify Each Comment
+
+For every comment, classify into one of these categories:
+
+| Category | Examples | Action |
+|----------|----------|--------|
+| **action-required** | "Change X to Y", "Add a null check here", "Rename this function" | Fix in code |
+| **question** | "Why did you do X?", "Should we consider Y?", "What about edge case Z?", "How does this handle…?" | Post a reply comment |
+| **suggestion** | "Consider using X instead" or "You could also…" | Fix if clearly better, otherwise reply with reasoning |
+| **nit** | Comments starting with "Nit:" or minor style preferences | Fix in code (these are usually quick) |
+| **acknowledgment** | "LGTM", "Good catch", "Thanks" | No action needed |
+| **resolved** | Comments on lines that have already been changed in a later commit | No action needed |
+
+### Classification Heuristics
+
+A comment is likely a **question** if:
+- It contains `?` and is asking for rationale, not confirming a change
+- It starts with "Why", "How", "What if", "Should we", "Did you consider"
+- It's requesting clarification rather than prescribing a change
+- It's asking about trade-offs or design decisions
+
+A comment is likely a **suggestion** (not a directive) if:
+- It uses hedging language: "Consider", "You could", "Might want to", "One option would be"
+- It offers alternatives without insisting
+- For suggestions: fix if the improvement is clear and uncontroversial. If it's a genuine trade-off, reply with your reasoning for the current approach and ask if the reviewer wants you to change it.
+
+## Step 3: Handle Each Comment
+
+### For action-required and nit comments:
+
+1. Fix the code as requested
+2. After all fixes, run `make test` (or the project's test command) to verify nothing is broken
+3. Stage, commit with message like `fix: address PR review feedback`, and push
+4. Post a single summary reply comment on the PR listing what was changed:
+   ```
+   gh pr comment {number} --body "Addressed review feedback:
+   - @{reviewer}: [description of fix for comment 1]
+   - @{reviewer}: [description of fix for comment 2]
+   ..."
+   ```
+
+### For question comments:
+
+1. Analyze the question in context of the code and PR diff
+2. Formulate a clear, concise answer
+3. Reply directly to the inline comment using the GitHub API:
+   ```
+   gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
+     -f body="@{reviewer} [your answer]"
+   ```
+   For issue-level comments, use:
+   ```
+   gh pr comment {number} --body "@{reviewer} [your answer]"
+   ```
+4. Do NOT make code changes unless the question reveals an actual issue
+
+### For suggestion comments:
+
+1. Evaluate the suggestion against the current implementation
+2. If the suggestion is clearly better → treat as action-required
+3. If it's a trade-off → reply with your reasoning and ask for confirmation before changing:
+   ```
+   gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
+     -f body="@{reviewer} Good suggestion. I went with [current approach] because [reason]. Happy to switch if you prefer [suggested approach]."
+   ```
+
+### For acknowledgment/resolved comments:
+
+No action needed. Move on.
+
+## Step 4: Final Summary
+
+After processing all comments, provide a brief summary to the user:
+
+```
+PR #{number} review handled:
+- {X} code fixes applied and pushed
+- {Y} questions answered with inline replies
+- {Z} suggestions evaluated ({A} adopted, {B} replied with reasoning)
+- {W} comments required no action
+```
+
+If any comments were ambiguous or you're unsure about the right approach, flag them to the user before proceeding.

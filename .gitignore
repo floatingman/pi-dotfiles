@@ -1,0 +1,14 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# Generated / cache content that should not be version-controlled
+node_modules/
+__pycache__/
+*.pyc
+*.log
+
+# Skill runtime caches (regenerated on use)
+results.json
+observations.jsonl
