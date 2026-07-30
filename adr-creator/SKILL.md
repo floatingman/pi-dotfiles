@@ -1,11 +1,7 @@
 ---
 
 name: adr-creator
-description: |
-Skills to create an Architecture Decision Record (ADR).
-Generate ADR files that comply with ADR format and quality standards.
-"Write an ADR," "Create an ADR," "I want to record my architectural decisions," "Document my decision to adopt 〇〇"
-It is activated by instructions such as: Use in situations where documentation of architectural decisions is required, such as technology selection, design policy changes, or contract development.
+description: 'Skills to create an Architecture Decision Record (ADR). Generates ADR files that comply with ADR format and quality standards. Triggered by instructions like "Write an ADR", "Create an ADR", "I want to record my architectural decisions", or "Document my decision to adopt X". Use when documentation of architectural decisions is required, such as technology selection, design policy changes, or contract development.'
 
 ---
 

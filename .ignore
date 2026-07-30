@@ -1,0 +1,4 @@
+# Files at the repo root that are documentation, not skills.
+# pi scans root-level *.md as skills; this keeps README.md out of that scan
+# without affecting git tracking (.ignore is honored by pi, ripgrep, fd).
+README.md
