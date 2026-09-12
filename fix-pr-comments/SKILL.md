@@ -47,13 +47,43 @@ A comment is likely a **suggestion** (not a directive) if:
 1. Fix the code as requested
 2. After all fixes, run `make test` (or the project's test command) to verify nothing is broken
 3. Stage, commit with message like `fix: address PR review feedback`, and push
-4. Post a single summary reply comment on the PR listing what was changed:
+4. Reply **inline on each addressed comment's thread** so anyone following the
+   review sees the resolution in context (a PR-level summary comment hides
+   per-thread outcomes from followers):
    ```
-   gh pr comment {number} --body "Addressed review feedback:
-   - @{reviewer}: [description of fix for comment 1]
-   - @{reviewer}: [description of fix for comment 2]
-   ..."
+   gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
+     -F body="@{reviewer} Addressed in {commit_sha}: [what changed / why, one or two sentences]"
    ```
+   - Batch these AFTER pushing so every reply can cite the commit SHA.
+   - Any comment_id in a thread works as the reply anchor; threads with
+     multiple comments need only one resolution reply.
+   - For long bodies or text with quotes/backticks, write the body to a temp
+     file and use `-F body=@/tmp/reply.md` — `-f` with complex shell quoting
+     splits arguments.
+   - Do NOT also post a PR-level summary comment for feedback that has inline
+     threads; reserve a brief summary comment only for feedback that arrived
+     with no inline anchor (e.g. findings buried in a review body with no
+     comment threads to attach to).
+5. Resolve the thread after replying — but ONLY for bot reviews; human
+   reviewers resolve their own threads. Find the thread containing the
+   comment, check its authors, and resolve only when every comment in it is
+   from the bot or yourself (a human participant means it is not yours to
+   close), and only when the fix fully addresses the comment (a partial fix
+   or a pending decision stays open):
+   ```
+   # List threads with authors; match .comments.nodes[].databaseId == {comment_id}
+   gh api graphql -f query='query($o:String!,$n:String!,$p:Int!){
+     repository(owner:$o,name:$n){ pullRequest(number:$p){
+       reviewThreads(first:100){ nodes{ id isResolved
+         comments(first:100){ nodes{ databaseId author{ login } } } } } } } }' \
+     -F o={owner} -F n={repo} -F p={number}
+
+   # Resolve (only when the author check passed and isResolved is false)
+   gh api graphql -f query='mutation($id:ID!){ resolveReviewThread(
+     input:{threadId:$id}){ thread{ isResolved } } }' -f id={thread_id}
+   ```
+   Copilot comments may be authored as `Copilot` or
+   `copilot-pull-request-reviewer` — match case-insensitively on "copilot".
 
 ### For question comments:
 
